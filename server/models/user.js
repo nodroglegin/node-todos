@@ -1,13 +1,62 @@
-var mongoose = require('mongoose');
+const mongoose = require('mongoose');
+const validator = require('validator');
+const jwt = require('jsonwebtoken');
+const _ = require('lodash');
 
-var User = mongoose.model('User', {
+// use mongooose schema to employ custom models
+var UserSchema = new mongoose.Schema({
     email:{
         type: String,
         required: true,
         minlength: 1,
-        trim: true
-    }
+        trim: true,
+        unique: true,
+        validate: {
+            validator: validator.isEmail,
+            message: '{VALUE} is not a valid email'
+        }
+    },
+    password: {
+        type: String,
+        require: true,
+        minlength: 8,
+    },
+    tokens: [{
+        access: {
+            type: String,
+            required: true
+        },
+        token: {
+            type: String,
+            required: true
+        }
+    }]
 });
+
+// following custom method defines exactly what we send back to user in JSON value
+UserSchema.methods.toJSON = function() {
+    var user = this;
+    var userObject = user.toObject(); 
+
+    // only want to send back to user id and email (not password and token etc)
+    return _.pick(userObject, ['_id', 'email']);
+};
+
+
+
+UserSchema.methods.generateAuthToken = function() {
+    var user = this;
+    var access = 'auth';
+    var token = jwt.sign({_id: user._id.toHexString(), access}, 'abc123secret').toString();
+
+    user.tokens.push({access, token});
+
+    return user.save().then(() => {
+        return token;
+    });
+};
+
+var User = mongoose.model('User', UserSchema);
 
 
 module.exports = {User};
