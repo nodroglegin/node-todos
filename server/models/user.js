@@ -43,7 +43,7 @@ UserSchema.methods.toJSON = function() {
 };
 
 
-
+// create an instance method
 UserSchema.methods.generateAuthToken = function() {
     var user = this;
     var access = 'auth';
@@ -55,6 +55,31 @@ UserSchema.methods.generateAuthToken = function() {
         return token;
     });
 };
+
+// create a static instance to use in server.js for checking token received
+// it is a model method (not an instance method) so straight function
+UserSchema.statics.findByToken = function (token) {
+
+    // create a variable with the model as the this binding; hence capitalised User
+    var User = this;
+    var decoded;
+
+    try {
+        decoded = jwt.verify(token, 'abc123secret');
+    } catch(e) {
+        // return new Promise((resolve, reject) => {
+        //     reject();
+        return Promise.reject();
+        }
+
+    // with success of the try 
+    return User.findOne({
+        '_id': decoded._id,
+        'tokens.token': token,
+        'tokens.access': 'auth'
+    });
+};
+
 
 var User = mongoose.model('User', UserSchema);
 
